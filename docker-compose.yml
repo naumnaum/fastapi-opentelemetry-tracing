@@ -3,22 +3,26 @@ version: '3.7'
 services:
   app:
     build: ./app
-    command: opentelemetry-instrument gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:80 --reload
+    # Command to run the FastAPI app with OpenTelemetry instrumentation and Gunicorn with Uvicorn workers
+    command: opentelemetry-instrument gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:80
+    # Maps port 8000 on the host to port 80 in the container. The app inside the container listens on port 80.
     ports:
       - "8000:80"
+    # Environment variables for OpenTelemetry
     environment:
-      - OTEL_TRACES_EXPORTER=jaeger_thrift
-      - OTEL_SERVICE_NAME=app
-      - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces
+      - OTEL_TRACES_EXPORTER=jaeger_thrift # Sets the exporter to Jaeger (using Thrift protocol)
+      - OTEL_SERVICE_NAME=app # The name of the service as it will appear in Jaeger
+      - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces # Endpoint for sending traces to Jaeger
 
   jaeger:
     image: "jaegertracing/all-in-one:latest"
+    # Ports exposed by Jaeger for various purposes
     ports:
-      - "5775:5775"
-      - "6831:6831"
-      - "6832:6832"
-      - "5778:5778"
-      - "16686:16686"
-      - "14268:14268"
-      - "14250:14250"
-      - "9411:9411"
+      - "5775:5775" # Port for Zipkin HTTP thrift protocol
+      - "6831:6831" # Port for Jaeger thrift-format traces over UDP
+      - "6832:6832" # Port for Jaeger thrift-format binary compact protocol over UDP
+      - "5778:5778" # Port for health check and metrics
+      - "16686:16686" # Port for the Jaeger UI
+      - "14268:14268" # Port for accepting Jaeger thrift-format traces over HTTP
+      - "14250:14250" # Port for Jaeger gRPC receiver
+      - "9411:9411" # Port for Zipkin compatible API (JSON v2)
