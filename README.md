@@ -1,3 +1,4 @@
+# Simple FastAPI project with tracing using Opentelemetry and Jaeger
 Simple FastAPI project to demonstrate the tracing using Opentelemetry and Jaeger.\
 To run simply do:\
 `docker compose -f docker-compose.yml up -d --build`\
