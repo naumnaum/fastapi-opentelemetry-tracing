@@ -41,7 +41,7 @@ services:
 
   otel-app:
     build: ./app-otel
-    command: opentelemetry-instrument uvicorn app:app --port 80 --host 0.0.0.0 --reload
+    command: opentelemetry-instrument uvicorn app:app --port 80 --host 0.0.0.0
     ports:
       - "8000:80"
     environment:
