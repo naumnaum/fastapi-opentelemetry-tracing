@@ -1,0 +1,6 @@
+numpy
+opentelemetry-distro
+opentelemetry-instrumentation-fastapi
+opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-jaeger
+httpx
