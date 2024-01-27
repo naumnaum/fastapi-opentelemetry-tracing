@@ -40,11 +40,9 @@ services:
 
   app_1:
     build:
-      context: ./app_2
-      dockerfile: Dockerfile
-    command: opentelemetry-instrument uvicorn app:app --port $APP_1_PORT --host 0.0.0.0
-    volumes:
-      - ./app_1:/app # Mount the code directory into the container
+      context: .
+      dockerfile: app_1/Dockerfile
+    command: uvicorn app:app --port $APP_1_PORT --host 0.0.0.0 --reload
     ports:
       - "${APP_1_PORT}:${APP_1_PORT}"
     environment:
@@ -57,11 +55,9 @@ services:
 #      - GRPC_TRACE=http,call_error,connectivity_state # Uncomment for debug, if you face "Transient error StatusCode..."
   app_2:
     build:
-      context: ./app_2
-      dockerfile: Dockerfile
-    command: opentelemetry-instrument uvicorn app:app --port $APP_2_PORT --host 0.0.0.0
-    volumes:
-      - ./app_2:/app # Mount the code directory into the container
+      context: .
+      dockerfile: app_2/Dockerfile
+    command: uvicorn app:app --port $APP_2_PORT --host 0.0.0.0 --reload
     ports:
       - "${APP_2_PORT}:${APP_2_PORT}"
     environment:
