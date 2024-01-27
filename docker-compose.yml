@@ -1,28 +1,74 @@
-version: '3.7'
+version: "3.7"
 
 services:
-  app:
-    build: ./app
-    # Command to run the FastAPI app with OpenTelemetry instrumentation and Gunicorn with Uvicorn workers
-    command: opentelemetry-instrument gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:80
-    # Maps port 8000 on the host to port 80 in the container. The app inside the container listens on port 80.
+  # Jaeger
+  jaeger-all-in-one:
+    image: jaegertracing/all-in-one:latest
+    restart: always
     ports:
-      - "8000:80"
-    # Environment variables for OpenTelemetry
-    environment:
-      - OTEL_TRACES_EXPORTER=jaeger_thrift # Sets the exporter to Jaeger (using Thrift protocol)
-      - OTEL_SERVICE_NAME=app # The name of the service as it will appear in Jaeger
-      - OTEL_EXPORTER_JAEGER_ENDPOINT=http://jaeger:14268/api/traces # Endpoint for sending traces to Jaeger
+      - "16686:16686"
+      - "14268"
+      - "14250"
 
-  jaeger:
-    image: "jaegertracing/all-in-one:latest"
-    # Ports exposed by Jaeger for various purposes
+  # Zipkin
+  zipkin-all-in-one:
+    image: openzipkin/zipkin:latest
+    environment:
+      - JAVA_OPTS=-Xms1024m -Xmx1024m -XX:+ExitOnOutOfMemoryError
+    restart: always
     ports:
-      - "5775:5775" # Port for Zipkin HTTP thrift protocol
-      - "6831:6831" # Port for Jaeger thrift-format traces over UDP
-      - "6832:6832" # Port for Jaeger thrift-format binary compact protocol over UDP
-      - "5778:5778" # Port for health check and metrics
-      - "16686:16686" # Port for the Jaeger UI
-      - "14268:14268" # Port for accepting Jaeger thrift-format traces over HTTP
-      - "14250:14250" # Port for Jaeger gRPC receiver
-      - "9411:9411" # Port for Zipkin compatible API (JSON v2)
+      - "9411:9411"
+
+  # Collector
+  otel-collector:
+    image: otel/opentelemetry-collector:0.88.0
+    restart: always
+    command: ["--config=/etc/otel-collector-config.yaml", "${OTELCOL_ARGS}"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "1888:1888"   # pprof extension
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+      - "13133:13133" # health_check extension
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP Http receiver
+      - "55679:55679" # zpages extension
+    depends_on:
+      - jaeger-all-in-one
+      - zipkin-all-in-one
+
+  app_1:
+    build:
+      context: ./app_2
+      dockerfile: Dockerfile
+    command: opentelemetry-instrument uvicorn app:app --port $APP_1_PORT --host 0.0.0.0
+    volumes:
+      - ./app_1:/app # Mount the code directory into the container
+    ports:
+      - "${APP_1_PORT}:${APP_1_PORT}"
+    environment:
+      - OTEL_SERVICE_NAME=app_1
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector:4317
+      - APP_1_PORT=$APP_1_PORT
+      - APP_2_PORT=$APP_2_PORT
+#      - GRPC_VERBOSITY=debug # Uncomment for debug, if you face "Transient error StatusCode..."
+#      - GRPC_TRACE=http,call_error,connectivity_state # Uncomment for debug, if you face "Transient error StatusCode..."
+  app_2:
+    build:
+      context: ./app_2
+      dockerfile: Dockerfile
+    command: opentelemetry-instrument uvicorn app:app --port $APP_2_PORT --host 0.0.0.0
+    volumes:
+      - ./app_2:/app # Mount the code directory into the container
+    ports:
+      - "${APP_2_PORT}:${APP_2_PORT}"
+    environment:
+      - OTEL_SERVICE_NAME=app_2
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://otel-collector:4317
+      - APP_1_PORT=$APP_1_PORT
+      - APP_2_PORT=$APP_2_PORT
+#      - GRPC_VERBOSITY=debug # Uncomment for debug, if you face "Transient error StatusCode..."
+#      - GRPC_TRACE=http,call_error,connectivity_state # Uncomment for debug, if you face "Transient error StatusCode..."
